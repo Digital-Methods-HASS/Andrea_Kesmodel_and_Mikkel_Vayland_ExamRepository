@@ -1,0 +1,56 @@
+#facet plot - selected years
+
+#1: Load packages
+library(tidyverse)
+library(readr)
+library(ggplot2)
+
+
+#2: load data
+
+
+files <- list.files("data", pattern = "\\.csv$", full.names = TRUE)
+
+data_list <- lapply(files, read_csv)
+``
+
+# 3: naming files
+names(data_list) <- gsub(".* - |\\.csv", "", basename(files))
+
+
+#4: combining into one dataset
+data_all <- bind_rows(data_list, .id = "Year")
+
+head(data_all)
+unique(data_all$Year)
+
+#5: Cleaning data:
+
+data_all <- data_all %>%
+  mutate(
+    Month = factor(Month,
+                   levels = c("January", "february", "March", "April",
+                              "May", "June", "July", "August",
+                              "September", "October", "November", "December")),
+    unique_articles = as.numeric(unique_articles)
+  )
+
+
+#6: Creating facet plot
+
+ggplot(data_all, aes(x = Month, y = unique_articles, group = Year, color = Year)) +
+  geom_line(size = 1) +
+  geom_point() +
+  facet_wrap(~ Year) +
+  labs(
+    title = "Mentions per month",
+    x = "Month",
+    y = "Unique articles",
+    color = "Year"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+
