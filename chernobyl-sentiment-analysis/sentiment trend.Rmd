@@ -1,0 +1,95 @@
+---
+title: "Chernobyl sentiment analysis"
+author: "Mikkel Vayland Hansen & Andrea Kesmodel"
+date: "2026-05-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#load packages
+
+library(tidyverse)
+library(tidytext)
+library(lubridate)
+library(stopwords)
+
+#load data & fix dates
+
+data <- read_delim("DATA/articles.csv", delim = ";") %>%
+  mutate(Date = dmy(Date))
+head(data$Date)
+
+glimpse(data)
+
+
+#Tokenizing
+
+tidy_data <- data %>%
+  unnest_tokens(word, Text)
+
+#Removing Danish stop words
+
+tidy_data <- tidy_data %>%
+  filter(!word %in% stopwords("da"))
+
+#Translating Danish words to English
+
+dk_en_dict <- tibble(
+  word = c("frygt", "fare", "død", "katastrofe", "ulykke",
+           "syg", "panik", "krise", "trussel", "gift"),
+  word_en = c("fear", "danger", "death", "catastrophe", "accident",
+              "sick", "panic", "crisis", "threat", "poison")
+)
+
+tidy_data <- tidy_data %>%
+  left_join(dk_en_dict, by = "word") %>%
+  mutate(word = ifelse(is.na(word_en), word, word_en))
+
+#NRC sentiment
+
+nrc <- get_sentiments("nrc")
+
+sentiment_data <- tidy_data %>%
+  inner_join(nrc, by = "word")
+
+#Sentiment per article:
+
+article_sentiment <- sentiment_data %>%
+  group_by(Date, Title, Paper) %>%
+  summarise(
+    positive = sum(sentiment == "positive"),
+    negative = sum(sentiment == "negative"),
+    sentiment_score = positive - negative,
+    .groups = "drop"
+  )
+
+
+
+#Sentiment over 1986 & 1987
+
+ggplot(article_sentiment, aes(x = Date, y = sentiment_score)) +
+  geom_smooth(method = "loess") +
+  labs(
+    title = "Sentiment trend over time",
+    x = "Dato",
+    y = "Sentiment score"
+  )
+```
+
+```{r}
+#Comparing newspapers
+
+ggplot(article_sentiment, aes(x = Date, y = sentiment_score, color = Paper)) +
+  geom_smooth(method = "loess") +
+  labs(
+    title = "Sentiment over time per newspaper",
+    x = "Dato",
+    y = "Sentiment score"
+  )
+
+```
+
